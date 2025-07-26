@@ -43,121 +43,12 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 # AWS Bedrock setup
 bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
 
-# NLX Configuration
-NLX_API_KEY = 'cQionHIxPViK883m1oKCnEXpRiIJ4jp2'  # Your NLX API key
-NLX_BASE_URL = 'https://api.nlx.ai'  # NLX API base URL
-NLX_WEBHOOK_URL = 'https://apps.nlx.ai/c/xB8DIIPgVajzjP2XudKqk/gbQy3AoiJgBqUHvJLt7DE'  # Your NLX webhook URL
-NLX_DEPLOYMENT_KEY = 'xB8DIIPgVajzjP2XudKqk'  # Your deployment key
-NLX_CHANNEL_KEY = 'gbQy3AoiJgBqUHvJLt7DE'  # Your channel key
-NLX_ENABLED = True  # Enable NLX integration
+# NLX Configuration - Removed for new repository
+NLX_ENABLED = False  # NLX integration disabled
 
 def schedule_nlx_appointment(appointment_data):
-    """Schedule appointment using NLX API"""
-    if not NLX_ENABLED:
-        return {"success": False, "error": "NLX API not configured"}
-    
-    try:
-        # Format appointment data for NLX using the correct API format
-        nlx_payload = {
-            "deploymentKey": NLX_DEPLOYMENT_KEY,
-            "channelKey": NLX_CHANNEL_KEY,
-            "input": {
-                "message": f"Schedule an appointment with {appointment_data.get('doctor', 'Doctor')} on {appointment_data.get('date')} at {appointment_data.get('time')} for {appointment_data.get('title', 'consultation')}",
-                "appointment_details": {
-                    "doctor": appointment_data.get('doctor'),
-                    "date": appointment_data.get('date'),
-                    "time": appointment_data.get('time'),
-                    "title": appointment_data.get('title', 'consultation'),
-                    "notes": appointment_data.get('notes', '')
-                }
-            }
-        }
-        
-        headers = {
-            "Authorization": f"Bearer {NLX_API_KEY}",
-            "Content-Type": "application/json",
-            "X-API-Key": NLX_API_KEY
-        }
-        
-        # Try NLX API first, then webhook if API fails
-        response = None
-        error_msg = ""
-        
-        # Try API endpoint with different auth formats
-        api_headers_variants = [
-            {"Authorization": f"Bearer {NLX_API_KEY}", "Content-Type": "application/json"},
-            {"X-API-Key": NLX_API_KEY, "Content-Type": "application/json"},
-            {"Authorization": f"Basic {NLX_API_KEY}", "Content-Type": "application/json"},
-            {"Content-Type": "application/json"}
-        ]
-        
-        response = None
-        error_msg = ""
-        
-        for api_headers in api_headers_variants:
-            try:
-                response = requests.post(
-                    f"{NLX_BASE_URL}/api/chat",
-                    json=nlx_payload,
-                    headers=api_headers,
-                    timeout=30
-                )
-                if response.status_code == 200:
-                    break  # Success
-                else:
-                    error_msg = f"API error: {response.status_code} - {response.text}"
-            except Exception as e:
-                error_msg = f"API connection error: {str(e)}"
-                continue
-        
-        # If API failed, try webhook
-        if not response or response.status_code != 200:
-            try:
-                webhook_payload = {
-                    "deploymentKey": NLX_DEPLOYMENT_KEY,
-                    "channelKey": NLX_CHANNEL_KEY,
-                    "message": f"Schedule an appointment with {appointment_data.get('doctor', 'Doctor')} on {appointment_data.get('date')} at {appointment_data.get('time')} for {appointment_data.get('title', 'consultation')}"
-                }
-                
-                response = requests.post(
-                    NLX_WEBHOOK_URL,
-                    json=webhook_payload,
-                    headers={"Content-Type": "application/json"},
-                    timeout=30
-                )
-                if response.status_code == 200:
-                    pass  # Success
-                else:
-                    error_msg += f" | Webhook error: {response.status_code} - {response.text}"
-            except Exception as e:
-                error_msg += f" | Webhook connection error: {str(e)}"
-        
-        # If both failed, return error
-        if not response or response.status_code != 200:
-            return {
-                "success": False,
-                "error": error_msg
-            }
-        
-        if response.status_code == 200:
-            result = response.json()
-            return {
-                "success": True,
-                "nlx_response": result,
-                "confirmation": "Appointment scheduled successfully via NLX",
-                "calendar_link": result.get("calendar_link", "")
-            }
-        else:
-            return {
-                "success": False,
-                "error": f"NLX API error: {response.status_code} - {response.text}"
-            }
-            
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Error scheduling with NLX: {str(e)}"
-        }
+    """Schedule appointment using NLX API - Disabled"""
+    return {"success": False, "error": "NLX API integration disabled"}
 
 def call_bedrock_with_retry(request_body, max_retries=3, base_delay=1):
     """Call Bedrock API with exponential backoff retry logic"""
@@ -1050,21 +941,9 @@ def voice_agent_chat(request: VoiceAgentRequest):
                 "notes": extracted_data.get("notes", "Scheduled via voice assistant")
             }
             
-            # Try to schedule with NLX first
-            nlx_result = schedule_nlx_appointment(appointment_data)
-            
-            if nlx_result.get("success"):
-                # NLX scheduling successful
-                appointment_data["nlx_appointment_id"] = nlx_result.get("nlx_appointment_id")
-                appointment_data["nlx_confirmation"] = nlx_result.get("confirmation")
-                appointment_data["nlx_calendar_link"] = nlx_result.get("calendar_link")
-                appointment_data["scheduled_with"] = "NLX"
-                actions_performed.append("appointment_scheduled_with_nlx")
-            else:
-                # Fallback to local database only
-                appointment_data["scheduled_with"] = "local_database"
-                appointment_data["nlx_error"] = nlx_result.get("error")
-                actions_performed.append("appointment_added_local_only")
+            # Schedule appointment locally
+            appointment_data["scheduled_with"] = "local_database"
+            actions_performed.append("appointment_added")
             
             appointments_col.insert_one(appointment_data)
         
@@ -1072,8 +951,7 @@ def voice_agent_chat(request: VoiceAgentRequest):
             "response": result.get("response", "I'm sorry, I didn't understand that."),
             "action": result.get("action", "none"),
             "confidence": result.get("confidence", 0.0),
-            "actions_performed": actions_performed,
-            "nlx_enabled": NLX_ENABLED
+            "actions_performed": actions_performed
         }
         
     except Exception as e:
@@ -1083,47 +961,14 @@ def voice_agent_chat(request: VoiceAgentRequest):
 def get_nlx_status():
     """Check NLX API status and configuration"""
     return {
-        "nlx_enabled": NLX_ENABLED,
-        "api_key_configured": bool(NLX_API_KEY),
-        "base_url": NLX_BASE_URL
+        "nlx_enabled": False,
+        "message": "NLX API integration has been removed"
     }
 
 @app.get("/nlx/available-slots/{doctor_name}")
 def get_available_slots(doctor_name: str, date: str = None):
     """Get available appointment slots for a doctor"""
-    if not NLX_ENABLED:
-        raise HTTPException(status_code=400, detail="NLX API not configured")
-    
-    try:
-        headers = {
-            "Authorization": f"Bearer {NLX_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        nlx_payload = {
-            "deploymentKey": NLX_DEPLOYMENT_KEY,
-            "channelKey": NLX_CHANNEL_KEY,
-            "input": {
-                "message": f"Get available appointment slots for Dr {doctor_name} on {date or datetime.now().strftime('%Y-%m-%d')}",
-                "doctor_name": doctor_name,
-                "date": date or datetime.now().strftime('%Y-%m-%d')
-            }
-        }
-        
-        response = requests.post(
-            f"{NLX_BASE_URL}/api/chat",
-            json=nlx_payload,
-            headers=headers,
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise HTTPException(status_code=response.status_code, detail=f"NLX API error: {response.text}")
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting available slots: {str(e)}")
+    raise HTTPException(status_code=400, detail="NLX API integration has been removed")
 
 if __name__ == "__main__":
     import uvicorn

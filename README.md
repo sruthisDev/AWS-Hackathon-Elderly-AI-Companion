@@ -5,7 +5,7 @@ This project integrates Claude 3.5 Sonnet (via AWS Bedrock) with a React fronten
 ## 🚀 Features
 
 - **AI-Powered Medical Information Extraction**: Uses Claude 3.5 Sonnet to extract structured medical data
-- **Multi-Modal Input**: Text input, file upload, and voice recording (ready for NLX integration)
+- **Multi-Modal Input**: Text input, file upload, and voice recording
 - **Patient Management**: Complete patient profile management system
 - **Medical Records**: Upload and manage medical documents
 - **Medication Tracking**: Track medications, dosages, and schedules
