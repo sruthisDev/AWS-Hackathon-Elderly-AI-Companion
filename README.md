@@ -1,4 +1,4 @@
-# AI Copilot for Senior Citizens - AWS Integration
+# AI Companion for Senior Citizens - AWS Integration
 
 This project integrates Claude 3.5 Sonnet (via AWS Bedrock) with a React frontend and FastAPI backend for medical information extraction and management.
 
